@@ -7,17 +7,13 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-# Print all arguments
-echo "All arguments: $@"
-echo
-
 # Get version_name from the first argument
 version_name=$1
 
 # Extract current versionCode from build.gradle
-version_code=$(grep "versionCode" app/build.gradle | awk '{print $2}' | tr -d '\n' | tr -d '\r')
-if ! [[ "$version_code" =~ ^[0-9]+$ ]]; then
-    echo "Error: Invalid versionCode extracted from app/build.gradle."
+version_code=$(grep -oP 'versionCode\s+\K\d+' app/build.gradle)
+if [ -z "$version_code" ]; then
+    echo "Error: Failed to extract versionCode from app/build.gradle."
     exit 1
 fi
 
@@ -29,7 +25,7 @@ if ! [[ "$version_code" =~ ^[0-9]+$ ]]; then
 fi
 
 # Update versionCode in build.gradle
-sed -i "s/versionCode [0-9]\+/versionCode $version_code/g" app/build.gradle
+sed -i "s/versionCode\s\+[0-9]\+/versionCode $version_code/g" app/build.gradle
 if ! grep -q "versionCode $version_code" app/build.gradle; then
     echo "Error: Failed to update versionCode in app/build.gradle."
     exit 1

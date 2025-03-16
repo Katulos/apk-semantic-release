@@ -1,0 +1,170 @@
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
+import java.nio.file.Files
+import java.nio.file.Paths
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.spotless)
+}
+
+apply from: "$project.rootDir/spotless.gradle"
+
+def styler = 'black red green yellow blue magenta cyan white'
+    .split().toList().withIndex(30)
+    .collectEntries { color, code -> [(color): {
+        text -> "\033[${code}m${text}\033[0m" }]
+    }
+
+def releaseDecryptionKey
+def releaseStorePassword
+def releaseKeyPassword
+def releaseKeyAlias
+
+def buildDate = new Date().format('yyyyMMddHHmmss')
+
+def keystoreProperties = new Properties()
+
+if (rootProject.file("keystore.properties").exists()) {
+    keystoreProperties.load(new FileInputStream(rootProject.file("keystore.properties")))
+    releaseDecryptionKey = keystoreProperties['KEYSTORE_DECRYPTION_KEY']
+    releaseStorePassword = keystoreProperties['RELEASE_KEYSTORE_PASSWORD']
+    releaseKeyPassword = keystoreProperties['RELEASE_KEY_PASSWORD']
+    releaseKeyAlias = keystoreProperties['RELEASE_KEY_ALIAS']
+} else {
+    releaseDecryptionKey = System.getenv('KEYSTORE_DECRYPTION_KEY')
+    releaseStorePassword = System.getenv('RELEASE_KEYSTORE_PASSWORD')
+    releaseKeyPassword = System.getenv('RELEASE_KEY_PASSWORD')
+    releaseKeyAlias = System.getenv('RELEASE_KEY_ALIAS')
+}
+
+tasks.register('encryptKeystore') {
+    doLast {
+        def key = releaseDecryptionKey
+        if (key == null || key.length() !in [16, 24, 32]) {
+            throw new GradleException("Invalid encryption key length. Key must be 16, 24, or 32 bytes long.")
+        }
+
+        def inputFile = "$project.rootDir/keystore.jks"
+        def outputFile = "$project.rootDir/keystore.jks.enc"
+
+        def cipher = Cipher.getInstance("AES")
+        def secretKey = new SecretKeySpec(key.getBytes("UTF-8"), "AES")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+
+        def fileContent = Files.readAllBytes(Paths.get(inputFile))
+        def encryptedContent = cipher.doFinal(fileContent)
+
+        Files.write(Paths.get(outputFile), encryptedContent)
+        println "${styler['green']('Keystore encrypted and saved to')} $outputFile"
+    }
+}
+
+tasks.register('decryptKeystore') {
+    doLast {
+        def decryptionKey = releaseDecryptionKey
+        if (decryptionKey == null || decryptionKey.length() !in [16, 24, 32]) {
+            throw new GradleException("Invalid decryption key length. Key must be 16, 24, or 32 bytes long.")
+        }
+
+        def encryptedFile = file("$project.rootDir/keystore.jks.enc")
+        if (!encryptedFile.exists()) {
+            throw new GradleException("Encrypted keystore file not found: ${encryptedFile.path}")
+        }
+
+        def cipher = Cipher.getInstance("AES")
+        def secretKey = new SecretKeySpec(decryptionKey.getBytes("UTF-8"), "AES")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey)
+
+        def encryptedBytes = Files.readAllBytes(encryptedFile.toPath())
+        def decryptedBytes = cipher.doFinal(encryptedBytes)
+
+        def decryptedFile = file("$project.rootDir/keystore.jks")
+        Files.write(decryptedFile.toPath(), decryptedBytes)
+
+        println "${styler['green']('Keystore successfully decrypted.')}"
+    }
+}
+
+tasks.register('deleteKeystore') {
+    doLast {
+        def keystoreFile = file("$project.rootDir/keystore.jks")
+        if (keystoreFile.exists()) {
+            Files.delete(keystoreFile.toPath())
+            println "${styler['green']('Keystore file deleted:')} ${keystoreFile.path}"
+        } else {
+            println "${styler['yellow']('Keystore file not found:')} ${keystoreFile.path}"
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'assembleRelease' || task.name == 'bundleRelease') {
+        task.dependsOn decryptKeystore
+        task.finalizedBy deleteKeystore
+    }
+}
+
+android {
+    namespace 'com.example.testapp'
+    compileSdk 35
+
+    signingConfigs {
+        release {
+            storeFile file("$project.rootDir/keystore.jks")
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.example.testapp"
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName "0.1"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    applicationVariants.configureEach { variant ->
+        def projectName = variant.applicationId ?: "TestApp"
+        def versionName = variant.versionName
+        def versionCode = variant.versionCode
+        def isSigned = variant.signingConfig != null
+        project.base.archivesName.set("${projectName}_v${versionName}_${versionCode}_${buildDate}")
+        if (!isSigned) {
+            println "${styler['yellow']('WARNING:')} ${styler['white']('Build not signed!')}"
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    //
+    implementation libs.appcompat
+    implementation libs.material
+    //
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+}

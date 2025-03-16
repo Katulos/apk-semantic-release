@@ -15,6 +15,10 @@
                         "release": "major"
                     },
                     {
+                        "type": "feat",
+                        "release": "minor"
+                    },
+                    {
                         "type": "refactoring",
                         "release": "patch"
                     },

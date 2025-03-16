@@ -1,4 +1,4 @@
-# release trigger
+#
 name: Release
 
 on:

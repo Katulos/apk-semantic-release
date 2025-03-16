@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/Katulos/apk-semantic-release/compare/v1.0.0...v1.1.0) (2025-03-16)
+
+### New Feature(s) 🚀
+
+* Added  minor rule ([ef0b05c](https://github.com/Katulos/apk-semantic-release/commit/ef0b05cca18c324506e0262928ae15a645cf22ab))
+
 ## 1.0.0 (2025-03-16)
 
 ### New Feature(s) 🚀

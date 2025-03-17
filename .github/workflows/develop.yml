@@ -63,7 +63,22 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run build
+      - name: Run APK build
         run: |
           chmod +x ./gradlew
           ./gradlew build
+        env:
+          KEYSTORE_DECRYPTION_KEY: ${{ secrets.KEYSTORE_DECRYPTION_KEY }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+
+      - name: Run AAB build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bundle
+        env:
+          KEYSTORE_DECRYPTION_KEY: ${{ secrets.KEYSTORE_DECRYPTION_KEY }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}

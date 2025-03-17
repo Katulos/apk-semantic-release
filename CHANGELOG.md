@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.1](https://github.com/Katulos/apk-semantic-release/compare/v2.0.0...v2.0.1) (2025-03-17)
+
+### Bug Fix(es) 🐛️
+
+* Added README ([f787769](https://github.com/Katulos/apk-semantic-release/commit/f78776973ed7dbe7e0c3a82a6fefc39087ad06f9))
+
 ## [2.0.0](https://github.com/Katulos/apk-semantic-release/compare/v1.2.1...v2.0.0) (2025-03-16)
 
 ### ⚠ BREAKING CHANGES
